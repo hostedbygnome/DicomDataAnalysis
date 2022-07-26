@@ -1,0 +1,6 @@
+/.pytest_cache
+/images
+/seg-files
+/stl-file
+/venv
+/__pycache__
