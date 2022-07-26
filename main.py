@@ -192,7 +192,7 @@ def imageAnalysis():
         labelledVoxelCoordinates = np.where(mask != 0)
         Np = len(labelledVoxelCoordinates[0])
         coordinates = np.array(labelledVoxelCoordinates, dtype='int').transpose((1, 0))  # Transpose equals zip(*a)
-        physicalCoordinates = coordinates * imageParam[1]
+        physicalCoordinates = coordinates * np.array((imageParam[0], imageParam[1], imageParam[2]))
         physicalCoordinates -= np.mean(physicalCoordinates, axis = 0)  # Centered at 0
         physicalCoordinates /= np.sqrt(Np)
         covariance = np.dot(physicalCoordinates.T.copy(), physicalCoordinates)
@@ -204,7 +204,7 @@ def imageAnalysis():
         return np.sqrt(eigenValues[2]) * 4, np.sqrt(eigenValues[1]) * 4, np.sqrt(eigenValues[0]) * 4 # major, minor, middle
 
     major, minor, middle = calcMajorMinor(seg_mask, ConstPixelSpacing)
-    print(f'Мажорный размер = {major} мм.\nМинорный размер = {minor} мм.\n{middle}')
+    print(f'Мажорный размер = {major} мм.\nМинорный размер = {minor} мм.')
     # Снимок с маской
     pyplot.imshow(dicomMask[680, :, : ], cmap="Greys")
     pyplot.show()
@@ -224,24 +224,24 @@ def imageAnalysis():
     ax.set_zlabel('Z')
     ax.set_title('liver')
     # 
-    # rx, ry, rz = major, minor, middle
+    rx, ry, rz = major, minor, middle
     # Set of all spherical angles:
-    # u = np.linspace(0, 2 * np.pi, 100)
-    # v = np.linspace(0, np.pi, 100)
+    u = np.linspace(0, 2 * np.pi, 100)
+    v = np.linspace(0, np.pi, 100)
 
     # Cartesian coordinates that correspond to the spherical angles:
     # (this is the equation of an ellipsoid):
-    # x = rx / 2 * np.outer(np.cos(u), np.sin(v))
-    # y = ry / 2 * np.outer(np.sin(u), np.sin(v))
-    # z = rz / 2 * np.outer(np.ones_like(u), np.cos(v))
+    x = rx / 2 * np.outer(np.cos(u), np.sin(v))
+    y = ry / 2 * np.outer(np.sin(u), np.sin(v))
+    z = rz / 2 * np.outer(np.ones_like(u), np.cos(v))
 
     # Plot:
-    # ax.plot_surface(x, y, z,  rstride = 4, cstride = 4, color = 'g', alpha = 0.2)
+    ax.plot_surface(x, y, z,  rstride = 4, cstride = 4, color = 'g', alpha = 0.2)
     # Adjustment of the axes, so that they all have the same span:
     # max_radius = max(rx, ry, rz)
     # for axis in 'xyz':
     #     getattr(ax, 'set_{}lim'.format(axis))((-max_radius, max_radius))
-    # rotate(90, 0)
+    rotate(90, 0)
     pyplot.show()
     
 if __name__ == '__main__':
