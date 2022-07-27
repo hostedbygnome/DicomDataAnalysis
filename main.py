@@ -1,5 +1,4 @@
 import os
-import re
 import string
 import pydicom
 import numpy as np
@@ -13,8 +12,9 @@ PathDicom = 'images'
 PathSTL = 'stl-file/seg.stl'
 
 def imageAnalysis():
+    ''' Модуль анализа образования '''
     lstFilesDCM = []
-    # Прочитать все файлы dicom
+    ''' Прочитать все файлы dicom '''
     for diName, subdirList, fileList in os.walk(PathDicom):
         for filename in fileList:
             if '.dcm' and '-0002-' in filename.lower():
@@ -24,70 +24,52 @@ def imageAnalysis():
     # print(RefDs)
     # print(RefDs.pixel_array)
     # print(RefDs.PatientPosition)
-    # pyplot.imshow(RefDs.pixel_array, cmap=pyplot.cm.bone)
-    # pyplot.show() 
-    # Отображение осевой поверхности
-    # pyplot.axes().set_aspect('equal', 'datalim')
-    # pyplot.axes().set_aspect('equal', 'datalim')
-    # Меняем картинку на серый цвет
-    # pyplot.set_cmap(pyplot.gray())
 
-    # pyplot.imshow (ArrayDicom[:,:, -1]) # Третье измерение указывает, какой слой в данный момент отображается 
-    # pyplot.imshow(ArrayDicom[:, 90, :])
-    # pyplot.show() 
-    # pyplot.figure(dpi=100) 
-    # pyplot.axes().set_aspect('equal', 'datalim') 
-    # pyplot.set_cmap(pyplot.gray()) 
-    # pyplot.imshow(ArrayDicom[:, 90, :])
-    # pyplot.show()
-
-    # Исходный снимок
+    ''' Исходный снимок '''
     # data = np.load('seg-files/segmentation.npz')
     # seg = data['arr_0']
 
-    # Маска по органу
+    ''' Маска по органу '''
     data = np.load('seg-files/segmentationseg.npz')
-    seg_mask = data['arr_0']
+    segMask = data['arr_0']
     ConstPixelDims = (len(lstFilesDCM), int(RefDs.Rows), int(RefDs.Columns))
     print(f'Количество слайсов: {ConstPixelDims[0]}\nРазмер снимка (ширина x высота): '
         f'{ConstPixelDims[1]} x {ConstPixelDims[2]} px.')
     
-    # Получить значение интервала
-    # PixelSpacing длина и ширина каждого пикселя, единицы (мм)
-    # SliceThickness толщина каждого слайса, единица (мм)
+    ''' 
+    Получение значений интервала
+    PixelSpacing длина и ширина каждого пикселя, единицы (мм)
+    SliceThickness толщина каждого слайса, единица (мм) 
+    '''
     ConstPixelSpacing = (float(RefDs.SliceThickness), float(RefDs.PixelSpacing[0]), float(RefDs.PixelSpacing[1]))
     print(f'Расстояние между слайсами: {ConstPixelSpacing[0]} мм.')
     print(f'Размер пикселя: {ConstPixelSpacing[1]} мм. x {ConstPixelSpacing[2]} мм.')
 
     ArrayDicom = np.zeros(ConstPixelDims, dtype=RefDs.pixel_array.dtype)
 
-    # Обойти все файлы dicom, прочитать данные изображения и сохранить их в массиве numpy
+    ''' Обойти все файлы dicom, прочитать данные изображения и сохранить их в массиве numpy '''
     for filenameDCM in lstFilesDCM:
         ds = pydicom.read_file(filenameDCM)
         ArrayDicom[lstFilesDCM.index(filenameDCM), :, : ] = ds.pixel_array
 
-    # Наложение маски
-    # for i in range(len(ArrayDicom)):
-    #     for j in range(len(ArrayDicom[i])):
-    #         for k in range(len(ArrayDicom[i][j])):
-    #             ArrayDicom[i][j][k] *= seg_mask[i][j][k]
-    dicomMask = ArrayDicom * seg_mask     
+    ''' Наложение маски '''
+    dicomMask = ArrayDicom * segMask     
     dicomMask -= 1000
 
-    # Среднее значение плотности органа
+    ''' Вычисление среднего значения плотности органа '''
     meanDensity = np.mean(dicomMask[dicomMask > -500])
     print(f'Среднее значение плотности печени = {meanDensity} HU')
 
-    # Значение медианы плотности органа
+    ''' Вычисление значения медианы плотности органа '''
     medianDensity = np.median(dicomMask[dicomMask > -500])
     print(f'Значение медианы плотности печени = {medianDensity} HU')
 
-    # Среднеквадратичное отклонение
+    ''' Вычисление среднеквадратичного отклонения '''
     standardDeviation = np.std(dicomMask[dicomMask > -500])
     print(f'Значение среднеквадратичного отклонения по плотности печени = {standardDeviation} HU')
-
-    # Вычисление максимального размера по осям X и Y
-    def organ_size(mask: np.array, axis: string):
+    
+    def organSize(mask: np.array, axis: string):
+        ''' Вычисление максимального размера по осям X и Y '''
         startTime = time.time()
         axis = axis.lower()
         size = 0
@@ -101,36 +83,37 @@ def imageAnalysis():
         time_calc = np.round(time.time() - startTime, 3)
         return size, time_calc
 
-    # Размер органа по оси X
-    sizeX, calcTime = organ_size(seg_mask, 'X')
+    ''' Вычисление размера органа по оси X '''
+    sizeX, calcTime = organSize(segMask, 'X')
     sizeX *= ConstPixelSpacing[1]
     print(f'Время выполнения X: {calcTime} sec')
     print(f'Max размер печени по оси X = {np.round(sizeX, 3)} мм.')
 
-    # Размер органа по оси Y
-    sizeY, calcTime = organ_size(seg_mask, 'Y') 
+    ''' Вычисление размера органа по оси Y '''
+    sizeY, calcTime = organSize(segMask, 'Y') 
     sizeY *= ConstPixelSpacing[2]
     print(f'Время выполнения Y: {calcTime} sec')
     print(f'Max размер печени по оси Y = {np.round(sizeY, 3)} мм.')
 
-    # Размер органа по оси Z
+    ''' Вычисление размера органа по оси Z '''
     startTime = time.time()
     size_z = 0
-    for i in range(len(seg_mask)):
-        size_z += 1 if np.sum(seg_mask[i] > 0) else 0
+    for i in range(len(segMask)):
+        size_z += 1 if np.sum(segMask[i] > 0) else 0
     size_z = size_z * ConstPixelSpacing[0]
     print(f'Время выполнения Z: {np.round(time.time() - startTime, 3)} sec')
     print(f'Размер печени по оси Z = {size_z} мм.')
 
-    # Объем органа
+    ''' Вычисление объема органа '''
     startTime = time.time()
-    area = np.sum(seg_mask)
+    area = np.sum(segMask)
     volume = area * ConstPixelSpacing[1] * ConstPixelSpacing[2] * ConstPixelSpacing[0]
     print(f'Время выполнения расчета объема: {np.round(time.time() - startTime, 3)} sec')
     print(f'Объем печени = {np.round(volume, 3)} мм³. ')
 
-    # Верхняя точка
+    ''' Вычисление мажорного и минорного размера образования через описанный параллелепипед '''
     # def upper_parall_point(mask: np.array, image_param: tuple):
+    ''' Верхняя точка параллелепипеда '''
     #     slice_thickness, pixel_spacing_x, pixel_spacing_y = image_param
     #     for i in range(len(mask)):
     #         for j in range(len(mask[i])):
@@ -141,8 +124,8 @@ def imageAnalysis():
     #                 z = i * slice_thickness
     #                 return [x, y, z]
                 
-    # Нижняя точка
     # def lower_parall_point(mask: np.array, image_param: tuple):
+    ''' Нижняя точка параллелепипеда '''
     #     slice_thickness, pixel_spacing_x, pixel_spacing_y = image_param
     #     len_mask = len(mask)
     #     for i in range(len(mask)):
@@ -154,8 +137,8 @@ def imageAnalysis():
     #                 z = (len_mask - 1 - i) * slice_thickness
     #                 return [x, y, z]
                 
-    # Дальняя точка
     # def far_parall_point(mask: np.array, image_param: tuple):
+    ''' Дальняя точка параллелепипеда '''
     #     slice_thickness, pixel_spacing_x, pixel_spacing_y = image_param
     #     transformed_mask = np.moveaxis(mask, 0, 1)
     #     for i in range(len(transformed_mask)):
@@ -167,7 +150,6 @@ def imageAnalysis():
     #                 z = j * slice_thickness
     #                 return [x, y, z]
 
-    
     # def calc_major_minor():
     #     x1, y1, z1 = upper_parall_point(seg_mask, ConstPixelSpacing) # Верхняя точка
     #     x2, y2, z2 = lower_parall_point(seg_mask, ConstPixelSpacing) # Нижняя точка
@@ -189,6 +171,7 @@ def imageAnalysis():
     #     return answers
     
     def calcMajorMinor(mask: np.array, imageParam: tuple):
+        ''' Вычисление мажорного и минорного размера образования '''
         labelledVoxelCoordinates = np.where(mask != 0)
         Np = len(labelledVoxelCoordinates[0])
         coordinates = np.array(labelledVoxelCoordinates, dtype='int').transpose((1, 0))  # Transpose equals zip(*a)
@@ -203,13 +186,13 @@ def imageAnalysis():
             return np.nan
         return np.sqrt(eigenValues[2]) * 4, np.sqrt(eigenValues[1]) * 4, np.sqrt(eigenValues[0]) * 4 # major, minor, middle
 
-    major, minor, middle = calcMajorMinor(seg_mask, ConstPixelSpacing)
+    major, minor, middle = calcMajorMinor(segMask, ConstPixelSpacing)
     print(f'Мажорный размер = {major} мм.\nМинорный размер = {minor} мм.')
-    # Снимок с маской
+    ''' Снимок с маской '''
     pyplot.imshow(dicomMask[680, :, : ], cmap="Greys")
     pyplot.show()
 
-    # 3d модель
+    ''' 3d модель '''
     def rotate(elev, angle):
         ax.view_init(elev=elev, azim=angle)
 
@@ -223,27 +206,20 @@ def imageAnalysis():
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
     ax.set_title('liver')
-    # 
-    rx, ry, rz = major, minor, middle
+    
+    # rx, ry, rz = major, minor, middle
     # Set of all spherical angles:
-    u = np.linspace(0, 2 * np.pi, 100)
-    v = np.linspace(0, np.pi, 100)
+    # u = np.linspace(0, 2 * np.pi, 100)
+    # v = np.linspace(0, np.pi, 100)
 
-    # Cartesian coordinates that correspond to the spherical angles:
-    # (this is the equation of an ellipsoid):
-    x = rx / 2 * np.outer(np.cos(u), np.sin(v))
-    y = ry / 2 * np.outer(np.sin(u), np.sin(v))
-    z = rz / 2 * np.outer(np.ones_like(u), np.cos(v))
+    # x = rx / 2 * np.outer(np.cos(u), np.sin(v))
+    # y = ry / 2 * np.outer(np.sin(u), np.sin(v))
+    # z = rz / 2 * np.outer(np.ones_like(u), np.cos(v))
 
     # Plot:
-    ax.plot_surface(x, y, z,  rstride = 4, cstride = 4, color = 'g', alpha = 0.2)
-    # Adjustment of the axes, so that they all have the same span:
-    # max_radius = max(rx, ry, rz)
-    # for axis in 'xyz':
-    #     getattr(ax, 'set_{}lim'.format(axis))((-max_radius, max_radius))
-    rotate(90, 0)
+    # ax.plot_surface(x, y, z,  rstride = 4, cstride = 4, color = 'g', alpha = 0.2)
+    rotate(30, 15)
     pyplot.show()
     
 if __name__ == '__main__':
     imageAnalysis()
-    
